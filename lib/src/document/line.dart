@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:notus_format/src/document/embeds.dart';
+import 'package:quill_format/quill_format.dart';
 
-import '../../packages/quill_format/lib/quill_format.dart';
 import 'attributes.dart';
 import 'block.dart';
 import 'leaf.dart';

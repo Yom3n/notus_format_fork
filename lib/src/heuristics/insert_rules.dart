@@ -1,5 +1,6 @@
 
-import '../../packages/quill_format/lib/quill_format.dart';
+import 'package:quill_format/quill_format.dart';
+
 import '../document/attributes.dart';
 
 /// The result of [_findNextNewline] function.

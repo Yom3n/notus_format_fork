@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import '../packages/quill_format/lib/quill_format.dart';
+import 'package:quill_format/quill_format.dart';
+
 import 'convert/html.dart';
 import 'document/attributes.dart';
 import 'document/block.dart';
@@ -49,8 +50,7 @@ class NotusDocument {
 
   NotusDocument.fromHtml(String html,
       {this.heuristics = NotusHeuristics.fallback})
-      : assert(html != null),
-        _delta = NotusHTMLCodec().decode(html) {
+      : _delta = NotusHTMLCodec().decode(html) {
     _loadDocument(_delta);
   }
 

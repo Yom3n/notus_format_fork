@@ -2,7 +2,8 @@ import 'dart:math' as math;
 
 
 
-import '../../packages/quill_format/lib/quill_format.dart';
+import 'package:quill_format/quill_format.dart';
+
 import 'attributes.dart';
 import 'embeds.dart';
 import 'line.dart';

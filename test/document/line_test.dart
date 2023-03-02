@@ -1,6 +1,5 @@
 import 'package:notus_format/notus_format.dart';
-import 'package:notus_format/packages/quill_format/lib/quill_format.dart';
-import 'package:notus_format/src/document/embeds.dart';
+import 'package:quill_format/quill_format.dart';
 import 'package:test/test.dart';
 
 final boldStyle = NotusStyle().merge(NotusAttribute.bold);
@@ -32,7 +31,8 @@ void main() {
     });
 
     test('nextLine', () {
-      root.insert(0, 'Hello world\nThis is my first multiline\nItem\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\nItem\ndocument.', null);
       root.retain(38, 1, ulStyle);
       root.retain(43, 1, bqStyle);
       LineNode line = root.first as LineNode;
@@ -116,7 +116,10 @@ void main() {
 
       LineNode line = root.first as LineNode;
       expect(line, hasLength(15));
-      final delta = Delta()..insert('Hello ')..insert('world', boldStyle.toJson())..insert('!!!\n');
+      final delta = Delta()
+        ..insert('Hello ')
+        ..insert('world', boldStyle.toJson())
+        ..insert('!!!\n');
       expect(line.toDelta(), delta);
     });
 
@@ -127,7 +130,9 @@ void main() {
       LineNode line = root.first as LineNode;
       expect(line, hasLength(12));
 
-      final delta = Delta()..insert('Hello world')..insert('\n', NotusAttribute.h1.toJson());
+      final delta = Delta()
+        ..insert('Hello world')
+        ..insert('\n', NotusAttribute.h1.toJson());
       expect(line.toDelta(), delta);
     });
 
@@ -190,7 +195,10 @@ void main() {
       expect(root.childCount, 1);
       LineNode line = root.first as LineNode;
       expect(line, hasLength(18));
-      final lineDelta = Delta()..insert('Hello ')..insert('worl', boldStyle.toJson())..insert(' cd ef!\n');
+      final lineDelta = Delta()
+        ..insert('Hello ')
+        ..insert('worl', boldStyle.toJson())
+        ..insert(' cd ef!\n');
       expect(line.toDelta(), lineDelta);
     });
 
@@ -201,19 +209,23 @@ void main() {
       expect(root.childCount, 1);
       LineNode line = root.first as LineNode;
       expect(line.childCount, 1);
-      final delta = Delta()..insert('delnes')..insert('\n', h2Style.toJson());
+      final delta = Delta()
+        ..insert('delnes')
+        ..insert('\n', h2Style.toJson());
       expect(line.toDelta(), delta);
     });
 
     test('delete empty line', () {
-      root.insert(0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
       expect(root.childCount, 4);
       root.delete(39, 1);
       expect(root.childCount, 3);
     });
 
     test('delete line-break of non-empty line', () {
-      root.insert(0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
       root.retain(39, 1, h2Style);
       expect(root.childCount, 4);
       root.delete(38, 1);
@@ -223,14 +235,16 @@ void main() {
     });
 
     test('insert at the beginning of a line', () {
-      root.insert(0, 'Hello world\nThis is my first multiline\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\ndocument.', null);
       root.insert(12, 'Boom! ', null);
       expect(root.childCount, 3);
       expect(root.children.elementAt(1), hasLength(33));
     });
 
     test('delete last character of a line', () {
-      root.insert(0, 'Hello world\nThis is my first multiline\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\ndocument.', null);
       root.delete(37, 1);
       expect(root.childCount, 3);
       LineNode line = root.children.elementAt(1) as LineNode;
@@ -239,7 +253,8 @@ void main() {
 
     test('collectStyle', () {
       // TODO: need more test cases for collectStyle
-      root.insert(0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
+      root.insert(
+          0, 'Hello world\nThis is my first multiline\n\ndocument.', null);
       root.retain(38, 1, h2Style);
       root.retain(23, 5, boldStyle);
       var result = root.lookup(20);

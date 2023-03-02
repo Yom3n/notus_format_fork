@@ -5,8 +5,8 @@ import 'dart:convert';
 
 import 'package:notus_format/convert.dart';
 import 'package:notus_format/notus_format.dart';
-import 'package:notus_format/packages/quill_format/lib/quill_format.dart';
 import 'package:notus_format/src/convert/html.dart';
+import 'package:quill_format/quill_format.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -212,7 +212,8 @@ void main() {
     });
 
     test('decode singe block with container: quote', () {
-      void runFor(NotusAttribute<String> attribute, String source, String html) {
+      void runFor(
+          NotusAttribute<String> attribute, String source, String html) {
         final delta = Delta()
           ..insert(source)
           ..insert('\n', attribute.toJson());
@@ -225,7 +226,8 @@ void main() {
     });
 
     test('decode singe block with container: list', () {
-      void runFor(NotusAttribute<String> attribute, String source, String html) {
+      void runFor(
+          NotusAttribute<String> attribute, String source, String html) {
         final delta = Delta()
           ..insert(source)
           ..insert('\n', attribute.toJson());
@@ -240,7 +242,8 @@ void main() {
     });
 
     test('decode singe block', () {
-      void runFor(NotusAttribute<String> attribute, String source, String html) {
+      void runFor(
+          NotusAttribute<String> attribute, String source, String html) {
         final delta = Delta()
           ..insert(source)
           ..insert('\n', attribute.toJson());
@@ -255,7 +258,8 @@ void main() {
     });
 
     test('decode multi line block', () {
-      void runFor(NotusAttribute<String> attribute, String source, String html) {
+      void runFor(
+          NotusAttribute<String> attribute, String source, String html) {
         final delta = Delta()
           ..insert(source)
           ..insert('\n', attribute.toJson())
@@ -405,7 +409,7 @@ void main() {
 //    });
 
     test('encode bold italic', () {
-      runFor(NotusAttribute<bool> attribute, String expected) {
+      void runFor(NotusAttribute<bool> attribute, String expected) {
         final delta = Delta()
           ..insert('This ')
           ..insert('house', attribute.toJson())

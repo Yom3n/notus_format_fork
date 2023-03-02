@@ -8,8 +8,7 @@ import 'dart:convert';
 import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart';
 import 'package:notus_format/notus_format.dart';
-
-import 'package:notus_format/packages/quill_format/lib/quill_format.dart';
+import 'package:quill_format/quill_format.dart';
 
 class NotusHTMLCodec extends Codec<Delta, String> {
   const NotusHTMLCodec();
@@ -189,7 +188,7 @@ class _NotusHTMLEncoder extends Converter<Delta, String> {
     }
 
     while (iterator.hasNext) {
-      final op = iterator.next();
+      final dynamic op = iterator.next();
 
       final lf = op.data.indexOf('\n');
 //      container = getContainer(op.attributes);
