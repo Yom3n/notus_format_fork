@@ -1,4 +1,6 @@
-import 'package:quill_format/quill_format.dart';
+
+
+import '../../packages/quill_format/lib/quill_format.dart';
 
 /// A heuristic rule for delete operations.
 abstract class DeleteRule {

@@ -1,5 +1,5 @@
-import 'package:quill_format/quill_format.dart';
 
+import '../../packages/quill_format/lib/quill_format.dart';
 import '../document/attributes.dart';
 
 /// The result of [_findNextNewline] function.
@@ -210,7 +210,9 @@ class AutoExitBlockRule extends InsertRule {
     // therefore we can exit this block.
     final attributes = target.attributes ?? <String, dynamic>{};
     attributes.addAll(NotusAttribute.block.unset.toJson());
-    return Delta()..retain(index)..retain(1, attributes);
+    return Delta()
+      ..retain(index)
+      ..retain(1, attributes);
   }
 }
 
@@ -340,10 +342,14 @@ class ForceNewlineForInsertsAroundEmbedRule extends InsertRule {
     if (cursorBeforeEmbed || cursorAfterEmbed) {
       final delta = Delta()..retain(index);
       if (cursorBeforeEmbed && !text.endsWith('\n')) {
-        return delta..insert(text)..insert('\n');
+        return delta
+          ..insert(text)
+          ..insert('\n');
       }
       if (cursorAfterEmbed && !text.startsWith('\n')) {
-        return delta..insert('\n')..insert(text);
+        return delta
+          ..insert('\n')
+          ..insert(text);
       }
       return delta..insert(text);
     }
@@ -424,7 +430,9 @@ class PreserveBlockStyleOnInsertRule extends InsertRule {
       result.retain(nextNewline.skippedLength!);
       final opText = nextNewline.op!.data as String;
       final lf = opText.indexOf('\n');
-      result..retain(lf)..retain(1, resetStyle);
+      result
+        ..retain(lf)
+        ..retain(1, resetStyle);
     }
 
     return result;
@@ -446,8 +454,7 @@ class InsertEmbedsRule extends InsertRule {
     final target = iter.next();
 
     // Check if [index] is on an empty line already.
-    final textBefore =
-        previous?.data is String ? previous!.data as String? : '';
+    final textBefore = previous?.data is String ? previous?.data as String? : '';
     final textAfter = target.data is String ? (target.data as String?)! : '';
 
     final isNewlineBefore = previous == null || textBefore!.endsWith('\n');

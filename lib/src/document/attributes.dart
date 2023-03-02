@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
-import 'package:quill_format/quill_format.dart';
+
+import '../../packages/quill_format/lib/quill_format.dart';
 
 /// Scope of a style attribute, defines context in which an attribute can be
 /// applied.

@@ -8,7 +8,11 @@ environment:
 
 dependencies:
   collection: ^1.15.0
-  quill_format: ^1.0.2
+  #For html parser purpose. Requires quill_delta.dart line38 to be "final dynamic data";
+  # in quill_format its   final object data;
+  #  quill_format: ^1.0.2
+
+  html: ^0.15.1
 
 dev_dependencies:
   pedantic: ^1.11.0

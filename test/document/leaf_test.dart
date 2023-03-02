@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:notus_format/notus_format.dart';
-import 'package:quill_format/quill_format.dart';
+import 'package:notus_format/packages/quill_format/lib/quill_format.dart';
 import 'package:test/test.dart';
 
 final boldStyle = NotusStyle().merge(NotusAttribute.bold);

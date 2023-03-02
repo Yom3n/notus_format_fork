@@ -1,6 +1,6 @@
 import 'package:notus_format/notus_format.dart';
-import 'package:quill_format/quill_format.dart';
 
+import '../packages/quill_format/lib/quill_format.dart';
 import 'heuristics/delete_rules.dart';
 import 'heuristics/format_rules.dart';
 import 'heuristics/insert_rules.dart';

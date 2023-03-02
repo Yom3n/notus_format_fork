@@ -1,7 +1,8 @@
 import 'dart:collection';
 
 import 'package:collection/collection.dart';
-import 'package:quill_format/quill_format.dart';
+
+import '../../packages/quill_format/lib/quill_format.dart';
 
 const _dataEquality = DeepCollectionEquality();
 

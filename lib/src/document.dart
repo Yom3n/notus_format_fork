@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:quill_format/quill_format.dart';
 
+import '../packages/quill_format/lib/quill_format.dart';
+import 'convert/html.dart';
 import 'document/attributes.dart';
 import 'document/block.dart';
 import 'document/embeds.dart';
@@ -75,6 +76,8 @@ class NotusDocument {
 
   /// Returns plain text representation of this document.
   String toPlainText() => _root.children.map((e) => e.toPlainText()).join('');
+
+  String toHtml() => NotusHTMLCodec().encode(_delta);
 
   dynamic toJson() {
     return _delta.toJson();
