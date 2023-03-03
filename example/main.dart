@@ -2,11 +2,21 @@ import 'package:notus_format/notus_format.dart';
 
 void main() {
   final doc = NotusDocument.fromHtml('''
+Sdasdf asdfasdf <b>asdf asdfas</b> gsdf g <i>fdgdfsg sdfg</i>
 <ol>
 <li>One</li>
 <li>Two</li>
 <li>Three</li>
 </ol>
+<ul>
+<li>Point 1</li>
+<li>Point 2</li>
+</ul>
+<pre>Some code
+Sample</pre>
+<blockquote>This is quote boys xDD asd awqed asd</blockquote>
+<a href="Www.google.com" target=“_blank”>Www.google.com</a>
+<a href="google.com">Google</a>
   ''');
   print("KURWA");
   print(doc.toDelta());
