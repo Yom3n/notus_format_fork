@@ -51,7 +51,6 @@ class NotusDocument {
   NotusDocument.fromHtml(String html,
       {this.heuristics = NotusHeuristics.fallback})
       : _delta = NotusHTMLCodec().decode(html) {
-    print("NO KURWA");
     _loadDocument(_delta);
   }
 
