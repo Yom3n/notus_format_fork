@@ -501,20 +501,19 @@ class _HTMLNotusDecoder extends Converter<String, Delta> {
               deltaKeys.attributes: attrInline,
             });
           }
+        } else if (attrInline.containsKey('embed')) {
+          deltaFormatList.insert(shiftIdx(), {
+            deltaKeys.insert: String.fromCharCode(8203),
+            deltaKeys.attributes: attrInline,
+          });
         }
-        // else if (attrInline.containsKey('embed')) {
-        //   deltaFormatList.insert(shiftIdx(), {
-        //     deltaKeys.insert: String.fromCharCode(8203),
-        //     deltaKeys.attributes: attrInline,
-        //   });
-        // }
-        // if (attrLine.isNotEmpty &&
-        //     (txt.isNotEmpty || attrInline.containsKey('embed'))) {
-        //   deltaFormatList.insert(shiftIdx(), {
-        //     deltaKeys.insert: '\n',
-        //     deltaKeys.attributes: attrLine,
-        //   });
-        // }
+        if (attrLine.isNotEmpty &&
+            (txt.isNotEmpty || attrInline.containsKey('embed'))) {
+          deltaFormatList.insert(shiftIdx(), {
+            deltaKeys.insert: '\n',
+            deltaKeys.attributes: attrLine,
+          });
+        }
       }
 
       if (attrLine.containsKey('block')) {

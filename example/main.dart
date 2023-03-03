@@ -1,7 +1,15 @@
 import 'package:notus_format/notus_format.dart';
 
 void main() {
-  final doc = NotusDocument();
+  final doc = NotusDocument.fromHtml('''
+<ol>
+<li>One</li>
+<li>Two</li>
+<li>Three</li>
+</ol>
+  ''');
+  print("KURWA");
+  print(doc.toDelta());
   // Listen to all changes applied to this document.
   doc.changes.listen((change) {
     print(change);
