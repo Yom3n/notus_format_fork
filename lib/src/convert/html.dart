@@ -701,15 +701,15 @@ class _HTMLNotusDecoder extends Converter<String, Delta> {
 
     void insertNewlineAfterConsecutiveAnchorTagWithImage(deltaList) {
       for (int i = 0; i < deltaList.length; i++) {
-        Map<String, dynamic> prev = (i == 0) ? null : deltaList[i - 1];
-        Map<String, dynamic> next =
+        Map<String, dynamic>? prev = (i == 0) ? null : deltaList[i - 1];
+        Map<String, dynamic>? next =
             (i == deltaList.length - 1) ? null : deltaList[i + 1];
-        Map<String, dynamic> current = deltaList[i];
+        Map<String, dynamic>? current = deltaList[i];
         Map<String, dynamic>? nextAttr =
-            (i == deltaList.length - 1) ? null : next[deltaKeys.attributes];
-        Map<String, dynamic>? currentAttr = current[deltaKeys.attributes];
+            (i == deltaList.length - 1) ? null : next?[deltaKeys.attributes];
+        Map<String, dynamic>? currentAttr = current?[deltaKeys.attributes];
         Map<String, dynamic>? prevAttr =
-            (i == 0) ? null : prev[deltaKeys.attributes];
+            (i == 0) ? null : prev?[deltaKeys.attributes];
         if (currentAttr == null ||
             !currentAttr.containsKey(deltaKeys.a) ||
             !currentAttr.containsKey(deltaKeys.embed) ||
@@ -717,11 +717,11 @@ class _HTMLNotusDecoder extends Converter<String, Delta> {
           continue;
         }
         if (nextAttr != null && nextAttr.containsKey(deltaKeys.a)) {
-          current[deltaKeys.insert] = current[deltaKeys.insert] + '\n';
+          current?[deltaKeys.insert] = current[deltaKeys.insert] + '\n';
         }
         if (prevAttr != null && prevAttr.containsKey(deltaKeys.a)) {
-          current[deltaKeys.insert] = current[deltaKeys.insert] + '\n';
-          prev[deltaKeys.insert] = prev[deltaKeys.insert] + '\n';
+          current?[deltaKeys.insert] = current[deltaKeys.insert] + '\n';
+          prev?[deltaKeys.insert] = prev[deltaKeys.insert] + '\n';
         }
       }
     }
