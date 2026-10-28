@@ -1,724 +1,225 @@
 // Copyright (c) 2018, the Zefyr project authors.  Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
-import 'dart:convert';
-
 import 'package:notus_format/convert.dart';
 import 'package:notus_format/notus_format.dart';
-import 'package:notus_format/src/convert/html.dart';
 import 'package:quill_format/quill_format.dart';
 import 'package:test/test.dart';
 
 void main() {
+  final bold = NotusAttribute.bold.toJson();
+  final italic = NotusAttribute.italic.toJson();
+  final underline = NotusAttribute.underline.toJson();
+  final strikethrough = NotusAttribute.strikethrough.toJson();
+
   group('$NotusHTMLCodec.decode', () {
-    test('decode Normal text', () {
-      final delta = Delta()..insert('Some text\n');
-      final html = 'Some text\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
+    test('decodes empty html to a single empty line', () {
+      expect(notusHTML.decode(''), Delta()..insert('\n'));
     });
 
-    test('decode unsupported HTML tag as normal text', () {
+    test('decodes plain text lines', () {
+      expect(notusHTML.decode('foo\nbar'), Delta()..insert('foo\nbar\n'));
+    });
+
+    test('decodes paragraphs with inline styles', () {
+      final html =
+          '<p><strong>b</strong><em>i</em><u>u</u><s>s</s></p><p></p><p>end</p>';
+
       final expected = Delta()
-        ..insert('<unsupported foo="bar">piyo</unsupported>')
+        ..insert('b', bold)
+        ..insert('i', italic)
+        ..insert('u', underline)
+        ..insert('s', strikethrough)
+        ..insert('\n\nend\n');
+      expect(notusHTML.decode(html), expected);
+    });
+
+    test('decodes web headings h2, h3, h4 as levels 1, 2, 3 with alignment',
+        () {
+      final html = '<h2 style="text-align: left;">large</h2>'
+          '<h3 style="text-align: center;">medium</h3>'
+          '<h4 style="text-align: right;">small</h4>'
+          '<p style="text-align: justify;">text</p>';
+
+      final expected = Delta()
+        ..insert('large')
+        ..insert('\n', {'heading': 1})
+        ..insert('medium')
+        ..insert('\n', {'heading': 2, 'alignment': 'center'})
+        ..insert('small')
+        ..insert('\n', {'heading': 3, 'alignment': 'end'})
+        ..insert('text')
+        ..insert('\n', {'alignment': 'justify'});
+      expect(notusHTML.decode(html), expected);
+    });
+
+    test('decodes span colors and drops the default text color', () {
+      final html = '<p><span style="color: rgb(46, 46, 46);">default</span>'
+          '<span style="color: rgb(231, 57, 219);">pink</span></p>';
+
+      final expected = Delta()
+        ..insert('default')
+        ..insert('pink', {'color': 0xFFE739DB})
         ..insert('\n');
-      final html = '<unsupported foo="bar" />piyo</unsupported>\n';
-      final result = notusHTML.decode(html);
-      expect(result, expected);
+      expect(notusHTML.decode(html), expected);
     });
 
-    test('decode italic attribute', () {
-      final i = NotusAttribute.italic.key;
-      final attributes = {i: true};
-      final delta = Delta()
-        ..insert('txt', attributes)
+    test('decodes lists of paragraphs and quoted headings', () {
+      final html = '<ul><li><p>a</p></li><li><p>b</p></li></ul>'
+          '<ol><li>c</li></ol>'
+          '<blockquote><h2>quote</h2></blockquote>';
+
+      final expected = Delta()
+        ..insert('a')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('b')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('c')
+        ..insert('\n', {'block': 'ol'})
+        ..insert('quote')
+        ..insert('\n', {'heading': 1, 'block': 'quote'});
+      expect(notusHTML.decode(html), expected);
+    });
+
+    test('decodes quill alignment classes and empty headings', () {
+      final html = '<p class="ql-align-center">center</p><h1><br></h1>'
+          '<p class="ql-align-right">right</p>';
+
+      final expected = Delta()
+        ..insert('center')
+        ..insert('\n', {'alignment': 'center'})
+        ..insert('\nright')
+        ..insert('\n', {'alignment': 'end'});
+      expect(notusHTML.decode(html), expected);
+    });
+
+    test('decodes link href and ignores other link attributes', () {
+      final html = '<p><a target="_blank" rel="noopener" href="https://a.com">'
+          'link</a></p>';
+
+      final expected = Delta()
+        ..insert('link', {'a': 'https://a.com'})
         ..insert('\n');
-      final html = '<i>txt</i>\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), delta.toString());
+      expect(notusHTML.decode(html), expected);
     });
 
-    test('decode bold attribute', () {
-      final b = NotusAttribute.bold.key;
-      final attributes = {b: true};
-      final delta = Delta()
-        ..insert('txt', attributes)
-        ..insert('\n');
-      final html = '<b>txt</b>\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), delta.toString());
+    test('decodes unsupported tags as their text content', () {
+      final html = '<p>no <span data-name="laughing" class="emoji">😆</span>'
+          ' <code>end</code></p>';
+
+      expect(notusHTML.decode(html), Delta()..insert('no 😆 end\n'));
     });
 
-//    test('decode multiple container attribute', () {
-//      final b = NotusAttribute.bold.toJson();
-//      final bc = Map<String, dynamic>.from(b);
-//      bc.addAll(NotusAttribute.container.withValue({
-//        "b": {"foo": "bar", "hidden": null}
-//      }).toJson());
-//      final delta = Delta()..insert('txt', bc)..insert('\n');
-//      final html = '<b foo="bar" hidden>txt</b>\n';
-//      final result = notusHTML.decode(html);
-//      expect(result.toString(), delta.toString());
-//    });
-
-    test('empty text', () {
-      final delta = Delta()..insert('\n');
-      final html = '';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode Bold tag', () {
-      final b = NotusAttribute.bold.toJson();
-      final delta = Delta()
-        ..insert('foo', b)
-        ..insert('\n');
-      final html = '<b>foo</b>';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('removeZeroWidthSpaceFromNonEmbed', () {
-      final b = NotusAttribute.bold.toJson();
-      final delta = Delta()
-        ..insert('foo', b)
-        ..insert('\n');
-      final html = '<b>${String.fromCharCode(8203)}foo</b>';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode intersecting inline ', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final bi = Map<String, dynamic>.from(b);
-      bi.addAll(i);
-      final delta = Delta()
-        ..insert('This')
-        ..insert('house', b)
-        ..insert('is a', bi)
-        ..insert('circus', b)
-        ..insert('desu')
-        ..insert('\n');
-      final html = 'This<b>house<i>is a</i>circus</b>desu\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode a tag', () {
-      final l = NotusAttribute.link.fromString('http://foo.com');
-      final delta = Delta()
-        ..insert('a tag', l.toJson())
-        ..insert('\n');
-      final html = '<a href="http://foo.com">a tag</a>\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode br tag', () {
-      final delta = Delta()
-        ..insert('\n')
-        ..insert('\n');
-      final html = '<br>\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-    test('decode nested br tag ', () {
-      final delta = Delta()
-        ..insert('<b>a<br></b>')
-        ..insert('\n');
-      final html = '<b>a<br></b>\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode plain text + inlined line attributes ', () {
-      final doc =
-          r'[{"insert":"foo"},{"insert":"\nhead text"},{"insert":"\n","attributes":{"heading":1}}]';
-      final delta = Delta.fromJson(json.decode(doc));
-      final html = 'foo<h1>head text</h1>\n';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-
-    test('decode consecutive a tag with image', () {
-      final f = NotusAttribute.link.fromString('http://bar.com');
-      final delta = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203) + '\n',
-          'attributes': {
-            'a': 'http://foo.com',
-            'embed': {'type': 'image', 'source': 'http://foo.jpg'},
-          }
-        },
-      ])
-        ..insert('a tag', f.toJson())
-        ..insert('\n');
+    test('decodes html previously saved by the app', () {
       final html =
-          '<a href="http://foo.com"><img src="http://foo.jpg" /></a><a href="http://bar.com">a tag</a>\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), delta.toString());
-    });
+          '<p>Hi <strong>you</strong>\n<ul><li>a</li><li>b</li></ul>\nbye</p>';
 
-    test('decode image', () {
-      final delta = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203),
-          'attributes': {
-            'embed': {'type': 'image', 'source': 'http://img.jpg'},
-          }
-        }
-      ])
-        ..insert('\n');
-      final html = '<img src="http://img.jpg"/>\n';
-      final result = notusHTML.decode(html);
-
-      expect(result.toString(), delta.toString());
-    });
-    test('decode end with new line policy', () {
-      final doc = r'[{"insert":"foo\n"}]';
-      final delta = Delta.fromJson(json.decode(doc));
-      final html = 'foo';
-      final result = notusHTML.decode(html);
-      expect(result, delta);
-    });
-    test('decode heading styles', () {
-      void runFor(NotusAttribute<int> attribute, String source, String html) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.decode(html);
-        expect(result, delta);
-      }
-
-      runFor(NotusAttribute.h1, 'Title', '<h1>Title</h1>\n');
-      runFor(NotusAttribute.h2, 'Title', '<h2>Title</h2>\n');
-      runFor(NotusAttribute.h3, 'Title', '<h3>Title</h3>\n');
-    });
-
-    test('decode heading styles with container attribute', () {
-      void runFor(NotusAttribute<int> attribute, String source, String html) {
-        final attr = attribute.toJson();
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attr);
-        final result = notusHTML.decode(html);
-        expect(result.toString(), delta.toString());
-      }
-
-      runFor(NotusAttribute.h1, 'Title', '<h1 foo="bar">Title</h1>\n');
-      runFor(NotusAttribute.h2, 'Title', '<h2 foo="bar">Title</h2>\n');
-      runFor(NotusAttribute.h3, 'Title', '<h3 foo="bar">Title</h3>\n');
-    });
-
-    test('decode singe block with container: quote', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String html) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.decode(html);
-        expect(result.toString(), delta.toString());
-      }
-
-      runFor(NotusAttribute.bq, 'item',
-          '<blockquote foo="bar">\nitem\n</blockquote>\n');
-    });
-
-    test('decode singe block with container: list', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String html) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.decode(html);
-        expect(result.toString(), delta.toString());
-      }
-
-      runFor(
-          NotusAttribute.ul, 'item', '<ul foo="bar">\n<li>item</li>\n</ul>\n');
-      runFor(
-          NotusAttribute.ol, 'item', '<ol foo="bar">\n<li>item</li>\n</ol>\n');
-    });
-
-    test('decode singe block', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String html) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.decode(html);
-        expect(result, delta);
-      }
-
-      runFor(NotusAttribute.ul, 'item', '<ul>\n<li>item</li>\n</ul>\n');
-      runFor(NotusAttribute.ol, 'item', '<ol>\n<li>item</li>\n</ol>\n');
-      runFor(NotusAttribute.bq, 'item', '<blockquote>\nitem\n</blockquote>\n');
-      runFor(NotusAttribute.ul, 'item', '<ul><li>item</li></ul>\n');
-    });
-
-    test('decode multi line block', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String html) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson())
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.decode(html);
-        expect(result, delta);
-      }
-
-      runFor(NotusAttribute.ul, 'item', '<ul>\n<li>item\nitem</li>\n</ul>\n');
-      runFor(NotusAttribute.ol, 'item', '<ol>\n<li>item\nitem</li>\n</ol>\n');
-      runFor(NotusAttribute.bq, 'item',
-          '<blockquote>\nitem\nitem\n</blockquote>\n');
-      runFor(NotusAttribute.code, 'item', '<pre>\nitem\nitem\n</pre>\n');
-    });
-    test('decode: img tag inside a tag', () {
-      final expected = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203),
-          'attributes': {
-            'a': 'https://foo.com',
-            'embed': {'type': 'image', 'source': 'http://img.jpg'},
-          }
-        },
-      ])
-        ..insert('\n');
-
-      var html = '<a href="https://foo.com"><img src="http://img.jpg" /></a>\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), expected.toString());
-    });
-
-    test('decode: img tag + link text inside a tag', () {
-      final expected = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203) + '\n',
-          'attributes': {
-            'a': 'https://foo.com',
-            'embed': {'type': 'image', 'source': 'http://img.jpg'},
-          }
-        },
-      ])
-        ..insert(
-            'bar', NotusAttribute.link.fromString('https://foo.com').toJson())
-        ..insert('\n');
-
-      var html =
-          '<a href="https://foo.com"><img src="http://img.jpg" />bar</a>\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), expected.toString());
-    });
-
-    test('decode complex intersecting inline ', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final bi = Map<String, dynamic>.from(b);
-      final bia = Map<String, dynamic>.from(b);
-      final biaimage = Map<String, dynamic>.from(b);
-      final l = NotusAttribute.link.fromString('https://github.com').toJson();
-      bi.addAll(i);
-      bia.addAll(i);
-      bia.addAll(l);
-      biaimage.addAll(i);
-      biaimage.addAll(l);
-      biaimage.addAll({
-        'embed': {'type': 'image', 'source': 'http://img.jpg'}
-      });
-      final ki = 'insert';
-      final ka = 'attributes';
-      final delta = Delta.fromJson([
-        {ki: 'c', ka: null},
-        {ki: 'd', ka: b},
-        {ki: 'e', ka: bi},
-        {ki: 'f\n', ka: bia},
-        {ki: String.fromCharCode(8203) + '\n', ka: biaimage},
-        {ki: 'g', ka: bi},
-        {ki: 'h', ka: b},
-        {ki: 'k\n', ka: null},
-      ]);
-      final html =
-          'c<b>d<i>e<a href="https://github.com">f<img src="http://img.jpg" /></a>g</i>h</b>k\n';
-      final result = notusHTML.decode(html);
-      expect(result.toString(), delta.toString());
-    });
-    test('decode multiple styles', () {
-      final result = notusHTML.decode(expectedHTML);
-      expect(result.toString(), delta.toString());
-    });
-    test('decode hr with container attribute', () {
-      void runFor(String html) {
-        final expected = Delta.fromJson([
-          {
-            'insert': String.fromCharCode(8203),
-            'attributes': {
-              'embed': {'type': 'hr'},
-            },
-          },
-        ])
-          ..insert('\n');
-        final delta = notusHTML.decode(html);
-        expect(delta.toString(), expected.toString());
-      }
-
-      runFor('<hr foo="bar"/>\n');
+      final expected = Delta()
+        ..insert('Hi ')
+        ..insert('you', bold)
+        ..insert('\na')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('b')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('bye\n');
+      expect(notusHTML.decode(html), expected);
     });
   });
 
   group('$NotusHTMLCodec.encode', () {
-    test('encode split adjacent paragraphs', () {
-      final delta = Delta()..insert('First line\nSecond line\n');
-      final result = notusHTML.encode(delta);
-      expect(result, 'First line\nSecond line\n');
-    });
-
-    test('encode italic attribute', () {
-      final i = NotusAttribute.italic.toJson();
-      final ic = Map<String, dynamic>.from(i);
+    test('encodes lines as paragraphs with inline styles', () {
       final delta = Delta()
-        ..insert('txt', ic)
-        ..insert('\n');
-      final expected = '<i>txt</i>\n';
-      final result = notusHTML.encode(delta);
-      expect(result.toString(), expected.toString());
+        ..insert('b', bold)
+        ..insert('i', italic)
+        ..insert('u', underline)
+        ..insert('s', strikethrough)
+        ..insert('\n\nend\n\n\n');
+
+      expect(
+        notusHTML.encode(delta),
+        '<p><strong>b</strong><em>i</em><u>u</u><s>s</s></p><p></p><p>end</p>',
+      );
     });
 
-    test('encode bold attribute', () {
-      final b = NotusAttribute.bold.toJson();
-      final bc = Map<String, dynamic>.from(b);
+    test('encodes empty document as a single empty paragraph', () {
+      expect(notusHTML.encode(Delta()..insert('\n\n')), '<p></p>');
+    });
+
+    test('encodes headings as web h2, h3, h4 with alignment', () {
       final delta = Delta()
-        ..insert('txt', bc)
-        ..insert('\n');
-      final expected = '<b>txt</b>\n';
-      final result = notusHTML.encode(delta);
-      expect(result.toString(), expected.toString());
+        ..insert('large')
+        ..insert('\n', {'heading': 1, 'alignment': 'center'})
+        ..insert('medium')
+        ..insert('\n', {'heading': 2})
+        ..insert('small')
+        ..insert('\n', {'heading': 3, 'alignment': 'end'});
+
+      expect(
+        notusHTML.encode(delta),
+        '<h2 style="text-align: center;">large</h2>'
+        '<h3>medium</h3>'
+        '<h4 style="text-align: right;">small</h4>',
+      );
     });
 
-//    test('encode bold with multiple container attribute', () {
-//      final b = NotusAttribute.bold.toJson();
-//      final bc = Map<String, dynamic>.from(b);
-//      bc.addAll(NotusAttribute.container.withValue({
-//        "b": {"foo": "bar", "hidden": null}
-//      }).toJson());
-//      final delta = Delta()..insert('txt', bc)..insert('\n');
-//      final expected = '<b foo="bar" hidden>txt</b>\n';
-//      final result = notusHTML.encode(delta);
-//      expect(result.toString(), expected.toString());
-//    });
-
-    test('encode bold italic', () {
-      void runFor(NotusAttribute<bool> attribute, String expected) {
-        final delta = Delta()
-          ..insert('This ')
-          ..insert('house', attribute.toJson())
-          ..insert(' is a ')
-          ..insert('circus', attribute.toJson())
-          ..insert('\n');
-
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.bold as NotusAttribute<bool>,
-          'This <b>house</b> is a <b>circus</b>\n');
-      runFor(NotusAttribute.italic as NotusAttribute<bool>,
-          'This <i>house</i> is a <i>circus</i>\n');
-    });
-
-    test('encode intersecting inline styles', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final bi = Map<String, dynamic>.from(b);
-      bi.addAll(i);
-
+    test('encodes consecutive block lines in one list or quote', () {
       final delta = Delta()
-        ..insert('This ')
-        ..insert('house', b)
-        ..insert(' is a ', bi)
-        ..insert('circus', b)
-        ..insert('\n');
+        ..insert('a')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('b')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('c')
+        ..insert('\n', {'block': 'ol'})
+        ..insert('quote')
+        ..insert('\n', {'block': 'quote'});
 
-      final result = notusHTML.encode(delta);
-      expect(result, 'This <b>house <i>is a</i> circus</b>\n');
+      expect(
+        notusHTML.encode(delta),
+        '<ul><li><p>a</p></li><li><p>b</p></li></ul>'
+        '<ol><li><p>c</p></li></ol>'
+        '<blockquote><p>quote</p></blockquote>',
+      );
     });
 
-    test('encode intersecting inline styles 2', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final bi = Map<String, dynamic>.from(b);
-      bi.addAll(i);
-
+    test('encodes plain lines without paragraphs when disabled', () {
       final delta = Delta()
-        ..insert('e', bi)
-        ..insert('\n');
+        ..insert('Hi ')
+        ..insert('you', bold)
+        ..insert('\n\ncentered')
+        ..insert('\n', {'alignment': 'center'})
+        ..insert('a')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('b')
+        ..insert('\n', {'block': 'ul'})
+        ..insert('bye\n');
 
-      final result = notusHTML.encode(delta);
-      expect(result, '<b><i>e</i></b>\n');
+      expect(
+        NotusHTMLCodec(wrapLinesInParagraphs: false).encode(delta),
+        'Hi <strong>you</strong>\n\n<p style="text-align: center;">centered</p>'
+        '\n<ul><li>a</li><li>b</li></ul>\nbye',
+      );
     });
 
-    test('encode intersecting inline styles 3', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final bia = Map<String, dynamic>.from(b);
-      final a = NotusAttribute.link.fromString('https://foo.com').toJson();
-      bia.addAll(i);
-      bia.addAll(a);
-
+    test('escapes text and link urls', () {
       final delta = Delta()
-        ..insert('e', bia)
+        ..insert('a < b & c', {'a': 'https://a.com?x="1"&y=2'})
         ..insert('\n');
 
-      final result = notusHTML.encode(delta);
-      expect(result, '<b><i><a href="https://foo.com">e</a></i></b>\n');
+      expect(
+        notusHTML.encode(delta),
+        '<p><a target="_blank" rel="noopener noreferrer nofollow" '
+        'href="https://a.com?x=&quot;1&quot;&amp;y=2">a &lt; b &amp; c</a></p>',
+      );
     });
+  });
 
-    test('encode img tag inside a tag', () {
-      final delta = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203),
-          'attributes': {
-            'a': 'https://foo.com',
-            'embed': {'type': 'image', 'source': 'http://img.jpg'},
-          }
-        },
-      ])
-        ..insert('\n');
-
-      final result = notusHTML.encode(delta);
-      var expected =
-          '<a href="https://foo.com"><img src="http://img.jpg" /></a>\n';
-      expect(result, expected);
-    });
-
-    test('encode img tag + link text inside a tag', () {
-      final delta = Delta.fromJson([
-        {
-          'insert': String.fromCharCode(8203),
-          'attributes': {
-            'a': 'https://foo.com',
-            'embed': {'type': 'image', 'source': 'http://img.jpg'},
-          }
-        },
-      ])
-        ..insert(
-            'bar', NotusAttribute.link.fromString('https://foo.com').toJson())
-        ..insert('\n');
-
-      final result = notusHTML.encode(delta);
-      var expected =
-          '<a href="https://foo.com"><img src="http://img.jpg" />bar</a>\n';
-      expect(result, expected);
-    });
-
-    test('encode normalize inline styles', () {
-      final b = NotusAttribute.bold.toJson();
-      final i = NotusAttribute.italic.toJson();
-      final delta = Delta()
-        ..insert('This')
-        ..insert(' house ', b)
-        ..insert('is a')
-        ..insert(' circus ', i)
-        ..insert('\n');
-
-      final result = notusHTML.encode(delta);
-      expect(result, 'This <b>house</b> is a <i>circus</i> \n');
-    });
-
-    test('encode links', () {
-      final b = NotusAttribute.bold.toJson();
-      final link = NotusAttribute.link.fromString('https://github.com');
-      final delta = Delta()
-        ..insert('This')
-        ..insert(' house ', b)
-        ..insert('is a')
-        ..insert(' circus ', link.toJson())
-        ..insert('\n');
-
-      final result = notusHTML.encode(delta);
-      expect(result,
-          'This <b>house</b> is a <a href="https://github.com">circus</a> \n');
-    });
-
-    test('encode heading styles', () {
-      void runFor(
-          NotusAttribute<int> attribute, String source, String expected) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.h1, 'Title', '<h1>Title</h1>\n');
-      runFor(NotusAttribute.h2, 'Title', '<h2>Title</h2>\n');
-      runFor(NotusAttribute.h3, 'Title', '<h3>Title</h3>\n');
-    });
-    test('encode heading styles', () {
-      void runFor(
-          NotusAttribute<int> attribute, String source, String expected) {
-        final attr = attribute.toJson();
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attr);
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.h1, 'Title', '<h1>Title</h1>\n');
-      runFor(NotusAttribute.h2, 'Title', '<h2>Title</h2>\n');
-      runFor(NotusAttribute.h3, 'Title', '<h3>Title</h3>\n');
-    });
-
-    test('encode singe block', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String expected) {
-        var attr = attribute.toJson();
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attr);
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.ul, 'item', '<ul>\n<li>item</li>\n</ul>\n');
-      runFor(NotusAttribute.ol, 'item', '<ol>\n<li>item</li>\n</ol>\n');
-      runFor(NotusAttribute.bq, 'item', '<blockquote>item</blockquote>\n');
-    });
-
-    test('encode block styles: ol, ul', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String expected) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(
-          NotusAttribute.ul, 'List item', '<ul>\n<li>List item</li>\n</ul>\n');
-      runFor(
-          NotusAttribute.ol, 'List item', '<ol>\n<li>List item</li>\n</ol>\n');
-      runFor(NotusAttribute.bq, 'List item',
-          '<blockquote>List item</blockquote>\n');
-    });
-
-    test('encode block styles: code, bq', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String expected) {
-        List<String> items = source.split('\n');
-        final delta = Delta()
-          ..insert(items[0])
-          ..insert('\n', attribute.toJson())
-          ..insert(items[1])
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.code, 'item1\nitem2', '<pre>item1\nitem2</pre>\n');
-      runFor(NotusAttribute.bq, 'item1\nitem2',
-          '<blockquote>item1\nitem2</blockquote>\n');
-    });
-
-    test('encode image', () {
-      void runFor(String expected) {
-        final delta = Delta.fromJson([
-          {
-            'insert': '',
-            'attributes': {
-              'embed': {'type': 'image', 'source': 'http://images.jpg'},
-            }
-          }
-        ])
-          ..insert('\n');
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor('<img src="http://images.jpg" />\n');
-    });
-
-    test('encode hr', () {
-      void runFor(String expected) {
-        final delta = Delta.fromJson([
-          {
-            'insert': '',
-            'attributes': {
-              'embed': {'type': 'hr'}
-            },
-          },
-        ])
-          ..insert('\n');
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor('<hr />\n');
-    });
-
-    test('encode hr attribute', () {
-      void runFor(String expected) {
-        final delta = Delta.fromJson([
-          {
-            'insert': '',
-            'attributes': {
-              'embed': {'type': 'hr'},
-            },
-          },
-        ])
-          ..insert('\n');
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor('<hr />\n');
-    });
-
-    test('encode multiline blocks', () {
-      void runFor(
-          NotusAttribute<String> attribute, String source, String expected) {
-        final delta = Delta()
-          ..insert(source)
-          ..insert('\n', attribute.toJson())
-          ..insert(source)
-          ..insert('\n', attribute.toJson());
-        final result = notusHTML.encode(delta);
-        expect(result, expected);
-      }
-
-      runFor(NotusAttribute.ul, 'text',
-          '<ul>\n<li>text</li>\n<li>text</li>\n</ul>\n');
-      runFor(NotusAttribute.ol, 'text',
-          '<ol>\n<li>text</li>\n<li>text</li>\n</ol>\n');
-      runFor(
-          NotusAttribute.bq, 'text', '<blockquote>text\ntext</blockquote>\n');
-    });
-
-    test('encode multiple styles', () {
-      final result = notusHTML.encode(delta);
-      expect(result, expectedHTML);
-    });
+  test('round trips html from the web editor', () {
+    expect(notusHTML.encode(notusHTML.decode(webHtml)), expectedWebHtml);
   });
 }
 
-final doc =
-    r'[{"insert":"Zefyr"},{"insert":"\n","attributes":{"heading":1}},{"insert": "​","attributes": {"embed": {"type": "hr"}}},{"insert":"Soft and gentle rich text editing for Flutter applications.","attributes":{"i":true}},{"insert":"\nZefyr is an "},{"insert":"early preview","attributes":{"b":true}},{"insert":" open source library.\n"},{"insert":"Documentation"},{"insert":"\n","attributes":{"heading":3}},{"insert":"Quick Start"},{"insert":"\n","attributes":{"block":"ul"}},{"insert":"Data format and Document Model"},{"insert":"\n","attributes":{"block":"ul"}},{"insert":"Style attributes"},{"insert":"\n","attributes":{"block":"ul"}},{"insert":"Heuristic rules"},{"insert":"\n","attributes":{"block":"ul"}},{"insert":"Clean and modern look"},{"insert":"\n","attributes":{"heading":2}},{"insert":"rich text editor is built with simplicity and flexibility in mind.\n"}]';
-final delta = Delta.fromJson(json.decode(doc));
+const webHtml =
+    '<h2 style="text-align: left;"><span style="color: rgb(46, 46, 46);"><strong>test h1 bold</strong></span></h2><h2 style="text-align: left;"><span style="color: rgb(46, 46, 46);">test h1 <em>i</em></span></h2><h2 style="text-align: left;"><span style="color: rgb(46, 46, 46);"><em><u>test h1 underline</u></em></span></h2><blockquote><h2 style="text-align: left;"><span style="color: rgb(46, 46, 46);"><em>test h1 quote</em></span></h2></blockquote><p style="text-align: left;"></p><h2 style="text-align: left;"><span style="color: rgb(231, 57, 219);">Test h1 color</span></h2><p style="text-align: left;"></p><p style="text-align: left;"><span style="color: rgb(46, 46, 46);"><strong>CONTRACTS</strong> TO JEST</span></p><ul><li><p style="text-align: left;"><span style="color: rgb(46, 46, 46);">123</span></p></li><li><p style="text-align: left;"><span style="color: rgb(46, 46, 46);">fadsfsaf</span></p></li></ul><p style="text-align: right;"><span style="color: rgb(242, 0, 0);">RIGHT</span></p><p style="text-align: center;"><span style="color: rgb(46, 46, 46);">CENTER</span></p><h3 style="text-align: left;"><span style="color: rgb(46, 46, 46);">headline medium</span></h3><h4 style="text-align: left;"><span style="color: rgb(46, 46, 46);">headline small</span></h4><ol><li><p style="text-align: left;"><span style="color: rgb(46, 46, 46);">sadfads</span></p></li></ol><p style="text-align: left;"><span style="color: rgb(46, 46, 46);"><strong><em>link </em></strong></span><a target="_blank" rel="noopener noreferrer nofollow" href="https://google.com"><span style="color: rgb(46, 46, 46);"><strong><em>google</em></strong></span></a><span style="color: rgb(46, 46, 46);"><strong><em> </em></strong></span></p><p style="text-align: left;"><span style="color: rgb(46, 46, 46);"><strong><em>no </em></strong></span><span data-name="laughing" class="emoji" data-type="emoji">😆</span></p><p style="text-align: left;">[Position title]<span style="color: rgb(46, 46, 46);"> </span>[Unit address]</p>';
 
-final expectedHTML = '''
-<h1>Zefyr</h1>
-<hr /><i>Soft and gentle rich text editing for Flutter applications.</i>
-Zefyr is an <b>early preview</b> open source library.
-<h3>Documentation</h3>
-<ul>
-<li>Quick Start</li>
-<li>Data format and Document Model</li>
-<li>Style attributes</li>
-<li>Heuristic rules</li>
-</ul>
-<h2>Clean and modern look</h2>
-rich text editor is built with simplicity and flexibility in mind.
-''';
+const expectedWebHtml =
+    '<h2><strong>test h1 bold</strong></h2><h2>test h1 <em>i</em></h2><h2><em><u>test h1 underline</u></em></h2><blockquote><h2><em>test h1 quote</em></h2></blockquote><p></p><h2><span style="color: rgb(231, 57, 219);">Test h1 color</span></h2><p></p><p><strong>CONTRACTS</strong> TO JEST</p><ul><li><p>123</p></li><li><p>fadsfsaf</p></li></ul><p style="text-align: right;"><span style="color: rgb(242, 0, 0);">RIGHT</span></p><p style="text-align: center;">CENTER</p><h3>headline medium</h3><h4>headline small</h4><ol><li><p>sadfads</p></li></ol><p><strong><em>link </em></strong><a target="_blank" rel="noopener noreferrer nofollow" href="https://google.com"><strong><em>google</em></strong></a><strong><em> </em></strong></p><p><strong><em>no </em></strong>😆</p><p>[Position title] [Unit address]</p>';

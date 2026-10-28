@@ -5,6 +5,7 @@ import 'package:notus_format/src/convert/html.dart';
 
 import 'src/convert/markdown.dart';
 
+export 'src/convert/html.dart' show NotusHTMLCodec;
 export 'src/convert/markdown.dart';
 
 /// Markdown codec for Notus documents.
